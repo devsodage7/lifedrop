@@ -1,0 +1,15 @@
+{
+  "name": "LifeDrop+ — Blood Donor Finder & SOS Network",
+  "short_name": "LifeDrop+",
+  "description": "Find compatible blood donors near you, raise an emergency SOS and check blood bank stock.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#e11d48",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

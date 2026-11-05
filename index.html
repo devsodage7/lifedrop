@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LifeDrop+ is a smart blood donor finder and emergency response network with compatibility matching, 90-day eligibility tracking, live SOS requests and blood bank inventory.">
+  <meta name="theme-color" content="#ffffff" id="metaThemeColor">
+  <title>LifeDrop+ | Smart Blood Donor Finder &amp; Emergency Response</title>
+
+  <!-- Apply the saved theme before paint to avoid a flash of the wrong theme -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('lifedrop.theme');
+        var theme = (saved === 'dark' || saved === 'light')
+          ? saved
+          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.theme = theme;
+        var meta = document.getElementById('metaThemeColor');
+        if (meta) meta.content = theme === 'dark' ? '#080d18' : '#ffffff';
+      } catch (e) { /* storage can be blocked; light theme is the fallback */ }
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+
+</head>
+
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <!-- Emergency ticker -->
+  <div class="ticker">
+    <div class="wrap ticker-inner">
+      <p><span class="pulse-dot" aria-hidden="true"></span><strong>Emergency lifeline:</strong> 24/7 verified donor network is live.</p>
+      <p><i class="fa-regular fa-clock" aria-hidden="true"></i> Critical response target: under 15 minutes</p>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="site-header" id="siteHeader">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#home" aria-label="LifeDrop+ home">
+        <span class="brand-icon"><i class="fa-solid fa-droplet" aria-hidden="true"></i></span>
+        <span>LifeDrop<span>+</span></span>
+      </a>
+
+      <button class="icon-btn nav-toggle" id="navToggle" type="button"
+              aria-expanded="false" aria-controls="primaryNav" aria-label="Open navigation menu">
+        <i class="fa-solid fa-bars" aria-hidden="true"></i>
+      </button>
+
+      <nav class="nav" id="primaryNav" aria-label="Primary navigation">
+        <a class="nav-link" href="#home"><i class="fa-solid fa-house" aria-hidden="true"></i> Home</a>
+        <a class="nav-link" href="#compatibility"><i class="fa-solid fa-dna" aria-hidden="true"></i> Compatibility</a>
+        <a class="nav-link" href="#find"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Find donors</a>
+        <a class="nav-link" href="#register"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Register</a>
+        <a class="nav-link" href="#inventory"><i class="fa-solid fa-hospital" aria-hidden="true"></i> Blood banks</a>
+        <button class="nav-link" type="button" data-action="open-admin"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Admin</button>
+        <button class="nav-link" type="button" id="btnAuth"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> <span>Sign in</span></button>
+        <button class="icon-btn" type="button" data-action="theme" aria-label="Toggle dark mode">
+          <i class="fa-solid fa-moon" data-theme-icon aria-hidden="true"></i>
+        </button>
+        <a class="btn btn-sos btn-sm" href="#sos"><i class="fa-solid fa-truck-medical" aria-hidden="true"></i> SOS</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero" id="home">
+      <div class="wrap hero-inner">
+        <span class="hero-badge"><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i> Verified community blood network</span>
+        <h1>Find the right blood donor<br><span>before the clock runs out.</span></h1>
+        <p class="hero-sub">Connect with verified voluntary donors in seconds. Scientific compatibility matching, automatic 90-day eligibility tracking, live emergency requests and blood bank stock — in one fast, private tool.</p>
+        <div class="hero-actions">
+          <a class="btn btn-sos" href="#sos"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Raise an SOS</a>
+          <a class="btn btn-primary" href="#find"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Find donors</a>
+          <a class="btn btn-ghost" href="#register" style="color:#e2e8f0;border-color:rgba(255,255,255,.28);background:rgba(255,255,255,.08)"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Become a donor</a>
+        </div>
+        <ul class="hero-points">
+          <li><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Verified profiles</li>
+          <li><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> 90-day safety cooldown</li>
+          <li><i class="fa-solid fa-lock" aria-hidden="true"></i> Numbers hidden from the public</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Live stats -->
+    <div class="wrap stats" aria-label="Network statistics">
+      <div class="stats-card">
+        <div class="stat">
+          <div class="stat-ico red"><i class="fa-solid fa-users" aria-hidden="true"></i></div>
+          <div><div class="stat-num" id="statDonors">0</div><div class="stat-lbl">Registered donors</div></div>
+        </div>
+        <div class="stat">
+          <div class="stat-ico green"><i class="fa-solid fa-user-check" aria-hidden="true"></i></div>
+          <div><div class="stat-num" id="statEligible">0</div><div class="stat-lbl">Ready now</div></div>
+        </div>
+        <div class="stat">
+          <div class="stat-ico amber"><i class="fa-solid fa-bell" aria-hidden="true"></i></div>
+          <div><div class="stat-num" id="statSOS">0</div><div class="stat-lbl">Active SOS</div></div>
+        </div>
+        <div class="stat">
+          <div class="stat-ico blue"><i class="fa-solid fa-city" aria-hidden="true"></i></div>
+          <div><div class="stat-num" id="statCities">0</div><div class="stat-lbl">Cities covered</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compatibility -->
+    <section class="section" id="compatibility">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow"><i class="fa-solid fa-dna" aria-hidden="true"></i> Scientific transfusion engine</span>
+          <h2 class="section-title">Blood compatibility matrix</h2>
+          <p class="section-sub">Pick the patient's blood group to instantly see who can safely donate and who they can donate to. Rules follow red-cell antigen compatibility.</p>
+        </div>
+
+        <div class="card matrix">
+          <div class="matrix-picker">
+            <h3>Select the patient's blood group</h3>
+            <p>Used for emergency recipient matching. Tap a group to test the rules.</p>
+            <div class="blood-pills" id="bloodPills" role="group" aria-label="Choose a blood group"></div>
+            <div class="callout">
+              <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+              <span><strong>Medical note:</strong> <span id="factText">Loading…</span></span>
+            </div>
+          </div>
+
+          <div class="matrix-results">
+            <div class="compat-block ok">
+              <div class="compat-head">
+                <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                Can receive blood from
+                <span class="count" id="receiveCount">0</span>
+              </div>
+              <div class="tags" id="receiveFromList"></div>
+            </div>
+            <hr class="divider">
+            <div class="compat-block brand">
+              <div class="compat-head">
+                <i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i>
+                Can donate blood to
+                <span class="count" id="giveCount">0</span>
+              </div>
+              <div class="tags" id="giveToList"></div>
+            </div>
+            <button class="btn btn-primary btn-block" type="button" data-action="find-compat" style="margin-top:20px">
+              <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+              <span id="compatCtaText">Find compatible donors</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Find donors -->
+    <section class="section section-alt" id="find">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search &amp; connect</span>
+          <h2 class="section-title">Locate available blood donors</h2>
+          <p class="section-sub">Search verified voluntary donors with live eligibility status. Compatibility mode automatically finds every group that can safely donate to the patient.</p>
+        </div>
+
+        <div class="card search-card">
+          <div class="filters">
+            <div class="field">
+              <label for="searchBlood"><i class="fa-solid fa-droplet" aria-hidden="true"></i> Patient's blood group</label>
+              <select id="searchBlood" class="select">
+                <option value="">All blood groups</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="searchCity"><i class="fa-solid fa-location-dot" aria-hidden="true"></i> City or district</label>
+              <input type="text" id="searchCity" class="input" list="cityList" placeholder="e.g. Mumbai, Pune…" autocomplete="address-level2">
+              <datalist id="cityList"></datalist>
+            </div>
+            <div class="field">
+              <label for="searchLogic"><i class="fa-solid fa-filter" aria-hidden="true"></i> Matching logic</label>
+              <select id="searchLogic" class="select">
+                <option value="compatible">All compatible groups</option>
+                <option value="exact">Exact match only</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="searchEligibility"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Eligibility</label>
+              <select id="searchEligibility" class="select">
+                <option value="eligible">Ready to donate now</option>
+                <option value="available">Available profiles</option>
+                <option value="all">All registered donors</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="searchSort"><i class="fa-solid fa-arrow-down-wide-short" aria-hidden="true"></i> Sort by</label>
+              <select id="searchSort" class="select">
+                <option value="recommended">Recommended</option>
+                <option value="soonest">Soonest eligible</option>
+                <option value="name">Name (A–Z)</option>
+                <option value="newest">Newest profiles</option>
+              </select>
+            </div>
+            <div class="field filter-actions">
+              <button class="btn btn-ghost" type="button" data-action="reset-filters">
+                <i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Reset filters
+              </button>
+            </div>
+          </div>
+
+          <div class="search-foot">
+            <label class="check">
+              <input type="checkbox" id="searchVerified">
+              <span>Verified donors only</span>
+            </label>
+            <div class="chips" id="activeChips"></div>
+          </div>
+        </div>
+
+        <div class="results-bar">
+          <p class="results-count" id="resultsMeta" aria-live="polite"></p>
+          <p class="inline-hint"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Cooldown is calculated automatically from the last donation date.</p>
+        </div>
+
+        <div class="donor-grid" id="donorContainer"></div>
+        <div class="center-row">
+          <button class="btn btn-ghost" type="button" data-action="load-more" id="loadMoreBtn" hidden></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SOS -->
+    <section class="section sos-section" id="sos">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow" style="background:var(--brand-soft);color:var(--brand-ink)"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> High priority</span>
+          <h2 class="section-title">Emergency blood request dispatcher</h2>
+          <p class="section-sub">Broadcast a critical requirement, see matching ready donors instantly, and share a ready-to-send WhatsApp alert or printable requisition pass.</p>
+        </div>
+
+        <div class="sos-grid">
+          <div class="card panel sos-form">
+            <h3><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Raise an emergency request</h3>
+            <form id="sosForm" novalidate>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="sosPatient">Patient full name *</label>
+                  <input type="text" id="sosPatient" class="input" placeholder="e.g. Sunita Verma" autocomplete="name" required maxlength="80">
+                </div>
+                <div class="field">
+                  <label for="sosPhone">Attendant contact *</label>
+                  <input type="tel" id="sosPhone" class="input" placeholder="10-digit mobile" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" autocomplete="tel" required>
+                </div>
+                <div class="field">
+                  <label for="sosBlood">Required blood group *</label>
+                  <select id="sosBlood" class="select" required>
+                    <option value="">Select blood group</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="sosUnits">Units needed *</label>
+                  <input type="number" id="sosUnits" class="input" min="1" max="15" value="2" required>
+                </div>
+                <div class="field">
+                  <label for="sosHospital">Hospital *</label>
+                  <input type="text" id="sosHospital" class="input" placeholder="e.g. KEM Hospital" required maxlength="90">
+                </div>
+                <div class="field">
+                  <label for="sosCity">City / area *</label>
+                  <input type="text" id="sosCity" class="input" placeholder="e.g. Mumbai, Andheri" required maxlength="70">
+                </div>
+                <div class="field full">
+                  <label for="sosUrgency">Urgency level</label>
+                  <select id="sosUrgency" class="select">
+                    <option value="critical">Critical — within hours</option>
+                    <option value="urgent" selected>Urgent — within 24 hours</option>
+                    <option value="routine">Routine — scheduled</option>
+                  </select>
+                </div>
+                <div class="field full">
+                  <label for="sosNotes">Case notes</label>
+                  <textarea id="sosNotes" class="textarea" rows="3" maxlength="400" placeholder="e.g. Bypass surgery scheduled in 3 hours. O-negative required."></textarea>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-sos btn-block" style="margin-top:16px;padding:13px">
+                <i class="fa-solid fa-bullhorn" aria-hidden="true"></i> Broadcast emergency SOS
+              </button>
+            </form>
+          </div>
+
+          <div class="card sos-feed">
+            <div class="feed-head">
+              <div>
+                <h3>Live requests</h3>
+                <p>Broadcast queue · auto-expires after 72 hours</p>
+              </div>
+              <div class="segmented" role="tablist" aria-label="Filter requests">
+                <button class="seg is-active" type="button" role="tab" aria-selected="true" data-action="sos-filter" data-filter="active">Active <span class="seg-count" id="sosActiveCount">0</span></button>
+                <button class="seg" type="button" role="tab" aria-selected="false" data-action="sos-filter" data-filter="all">All</button>
+              </div>
+            </div>
+            <div id="sosFeedList"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Register -->
+    <section class="section" id="register">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Join the mission</span>
+          <h2 class="section-title">Register as a voluntary donor</h2>
+          <p class="section-sub">One donation can save up to three lives. Your profile is published to the network; your phone number stays masked and is only shown to signed-in people who are looking for a donor.</p>
+        </div>
+
+        <div class="register-grid">
+          <div class="card panel">
+            <form id="donorRegisterForm" novalidate>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="regName">Full name *</label>
+                  <input type="text" id="regName" class="input" placeholder="e.g. John Doe" autocomplete="name" required minlength="2" maxlength="70">
+                </div>
+                <div class="field">
+                  <label for="regPhone">Mobile (WhatsApp enabled) *</label>
+                  <input type="tel" id="regPhone" class="input" placeholder="10-digit mobile" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" autocomplete="tel" required>
+                </div>
+                <div class="field">
+                  <label for="regBlood">Blood group *</label>
+                  <select id="regBlood" class="select" required>
+                    <option value="">Choose blood group</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="regAge">Age (18–65) *</label>
+                  <input type="number" id="regAge" class="input" min="18" max="65" placeholder="e.g. 26" required>
+                </div>
+                <div class="field">
+                  <label for="regWeight">Weight in kg (min 50) *</label>
+                  <input type="number" id="regWeight" class="input" min="50" max="200" placeholder="e.g. 65" required>
+                </div>
+                <div class="field">
+                  <label for="regGender">Gender *</label>
+                  <select id="regGender" class="select" required>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="regCity">City / area *</label>
+                  <input type="text" id="regCity" class="input" placeholder="e.g. Mumbai, Bandra" autocomplete="address-level2" required maxlength="60">
+                </div>
+                <div class="field">
+                  <label for="regLastDonation">Last donation date</label>
+                  <input type="date" id="regLastDonation" class="input">
+                  <p class="field-hint">Leave blank for a first-time donor.</p>
+                </div>
+              </div>
+
+              <div id="cooldownNotice" class="notice notice-ok" hidden></div>
+
+              <label class="check" style="margin:4px 0 18px">
+                <input type="checkbox" id="regConsent" required>
+                <span>I confirm the details are accurate and consent to being contacted by people who need blood. I can pause or delete my profile at any time.</span>
+              </label>
+
+              <button type="submit" class="btn btn-primary btn-block" style="padding:13px">
+                <i class="fa-solid fa-user-check" aria-hidden="true"></i> Register as a LifeDrop hero
+              </button>
+            </form>
+          </div>
+
+          <aside class="card panel manage-card">
+            <h3><i class="fa-solid fa-sliders" aria-hidden="true"></i> Manage your profile</h3>
+            <p>Already registered? Look yourself up with your mobile number to pause requests or log a new donation.</p>
+            <div class="manage-search">
+              <input type="tel" id="managePhone" class="input" placeholder="Registered 10-digit mobile" inputmode="numeric" maxlength="10" autocomplete="tel">
+              <button class="btn btn-primary" type="button" data-action="manage-find" aria-label="Find my donor profile"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
+            </div>
+            <div id="manageResult"></div>
+            <p class="manage-note"><i class="fa-solid fa-lock" aria-hidden="true"></i> Sign in with the account you registered with — your profile opens instantly and only you can edit it.</p>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- Inventory -->
+    <section class="section section-alt" id="inventory">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow"><i class="fa-solid fa-hospital" aria-hidden="true"></i> Hospital network</span>
+          <h2 class="section-title">Blood bank live inventory</h2>
+          <p class="section-sub">Stock levels across affiliated blood banks. Switch hospitals to check availability before travelling.</p>
+        </div>
+
+        <div class="inventory-toolbar">
+          <div class="field">
+            <label for="hospitalSelect"><i class="fa-solid fa-building-circle-check" aria-hidden="true"></i> Blood bank</label>
+            <select id="hospitalSelect" class="select"></select>
+          </div>
+          <p class="inline-hint"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Status reflects units available per bank.</p>
+        </div>
+
+        <div id="inventoryAlert"></div>
+        <div class="stock-grid" id="inventoryGrid"></div>
+
+        <div class="admin-banner">
+          <div>
+            <h3>Demo admin console</h3>
+            <p>Manage donors and requests, review readiness analytics, export backups and reset demo data.</p>
+          </div>
+          <button class="btn btn-primary" type="button" data-action="open-admin">
+            <i class="fa-solid fa-lock" aria-hidden="true"></i> Open admin
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Admin console -->
+  <div class="modal-backdrop" id="adminModal" role="dialog" aria-modal="true" aria-labelledby="adminTitle" aria-hidden="true">
+    <div class="modal modal-lg">
+      <div class="modal-head">
+        <div>
+          <h2 id="adminTitle">Admin console</h2>
+          <p>Live network data · admins can verify donors and update blood bank stock</p>
+        </div>
+        <button class="icon-btn" type="button" data-action="close-modal" aria-label="Close admin console"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="tabs" role="tablist" aria-label="Admin sections">
+          <button class="tab" type="button" role="tab" data-action="admin-tab" data-tab="overview" aria-selected="true">Overview</button>
+          <button class="tab" type="button" role="tab" data-action="admin-tab" data-tab="donors" aria-selected="false">Donors</button>
+          <button class="tab" type="button" role="tab" data-action="admin-tab" data-tab="requests" aria-selected="false">Requests</button>
+          <button class="tab" type="button" role="tab" data-action="admin-tab" data-tab="data" aria-selected="false">Data</button>
+        </div>
+
+        <section class="admin-panel" id="adminPanel-overview">
+          <div class="kpis" id="adminKpis"></div>
+          <div class="admin-charts">
+            <div class="chart-card">
+              <h4>Donors by blood group</h4>
+              <div class="bar-chart" id="adminChartBars" role="img" aria-label="Bar chart of registered donors by blood group"></div>
+            </div>
+            <div class="chart-card">
+              <h4>Donor readiness</h4>
+              <div class="donut-wrap">
+                <div class="donut" id="adminDonut" role="img" aria-label="Donut chart of donor readiness"></div>
+                <ul class="legend" id="adminLegend"></ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="admin-panel" id="adminPanel-donors" hidden>
+          <div class="admin-toolbar">
+            <input type="search" id="adminDonorSearch" class="input" placeholder="Search name, phone, city or group…" aria-label="Search donor records">
+            <span class="small muted" id="adminDonorCount"></span>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th>Donor</th><th>Group</th><th>City</th><th>Eligibility</th><th>Availability</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="adminTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="admin-panel" id="adminPanel-requests" hidden>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr><th>Patient</th><th>Need</th><th>Hospital</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="adminReqBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="admin-panel" id="adminPanel-data" hidden>
+          <div class="data-grid">
+            <div class="data-card">
+              <h4><i class="fa-solid fa-download" aria-hidden="true"></i> Backup</h4>
+              <p>Download a full JSON backup or a spreadsheet-friendly CSV of donors.</p>
+              <button class="btn btn-ghost btn-sm" type="button" data-action="export-json"><i class="fa-solid fa-file-code" aria-hidden="true"></i> JSON</button>
+              <button class="btn btn-ghost btn-sm" type="button" data-action="export-csv"><i class="fa-solid fa-file-csv" aria-hidden="true"></i> CSV</button>
+            </div>
+            <div class="data-card">
+              <h4><i class="fa-solid fa-upload" aria-hidden="true"></i> Restore</h4>
+              <p>Import a previously exported JSON backup. This replaces current donors.</p>
+              <button class="btn btn-ghost btn-sm" type="button" data-action="import-json"><i class="fa-solid fa-folder-open" aria-hidden="true"></i> Choose JSON file</button>
+              <input type="file" id="adminImportInput" accept=".json,application/json" hidden>
+            </div>
+            <div class="data-card">
+              <h4><i class="fa-solid fa-hospital" aria-hidden="true"></i> Blood bank stock</h4>
+              <p>Update units available. Changes go live for everyone instantly.</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                <div class="field" style="margin:0;min-width:200px">
+                  <label for="stockHospital">Blood bank</label>
+                  <select id="stockHospital" class="select"></select>
+                </div>
+                <div class="field" style="margin:0;min-width:96px">
+                  <label for="stockGroup">Group</label>
+                  <select id="stockGroup" class="select"></select>
+                </div>
+                <div class="field" style="margin:0;min-width:96px">
+                  <label for="stockUnits">Units</label>
+                  <input id="stockUnits" class="input" type="number" min="0" max="9999" value="0">
+                </div>
+                <button class="btn btn-primary btn-sm" type="button" data-action="save-stock">
+                  <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Save stock
+                </button>
+              </div>
+              <p class="small muted" id="stockMsg" style="margin-top:10px"></p>
+            </div>
+            <div class="data-card">
+              <h4><i class="fa-solid fa-database" aria-hidden="true"></i> Demo data</h4>
+              <p>Load sample donor profiles for demonstrations (marked as demo, removable in one click).</p>
+              <button class="btn btn-primary btn-sm" type="button" data-action="seed-demo"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Load sample donors</button>
+              <button class="btn btn-ghost btn-sm" type="button" data-action="clear-demo"><i class="fa-solid fa-broom" aria-hidden="true"></i> Remove samples</button>
+            </div>
+            <div class="data-card">
+              <h4><i class="fa-solid fa-trash-can" aria-hidden="true"></i> Reset</h4>
+              <p>Remove every donor and request stored in this browser. This cannot be undone.</p>
+              <button class="btn btn-ghost btn-sm danger-text" type="button" data-action="reset-all"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Clear database</button>
+            </div>
+          </div>
+          <p class="storage-note" id="storageInfo"></p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account: sign in / sign up -->
+  <div class="modal-backdrop" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authTitle" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h2 id="authTitle">Welcome back</h2>
+          <p id="authSub">Sign in to reveal donor numbers, raise an SOS and manage your profile.</p>
+        </div>
+        <button class="icon-btn" type="button" data-action="close-auth" aria-label="Close account dialog"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+      <div class="modal-body">
+        <div id="authFormWrap">
+          <div class="tabs" role="tablist" aria-label="Account mode">
+            <button class="tab is-active" type="button" role="tab" id="tabSignin" aria-selected="true">Sign in</button>
+            <button class="tab" type="button" role="tab" id="tabSignup" aria-selected="false">Create account</button>
+          </div>
+          <form id="authForm" novalidate>
+            <div class="field" id="authNameField" hidden>
+              <label for="authNameInput">Your name</label>
+              <input type="text" id="authNameInput" class="input" placeholder="e.g. Devraj Sodage" autocomplete="name" maxlength="60">
+            </div>
+            <div class="field">
+              <label for="authEmail">Email</label>
+              <input type="email" id="authEmail" class="input" placeholder="you@example.com" autocomplete="email" required>
+            </div>
+            <div class="field">
+              <label for="authPassword">Password</label>
+              <input type="password" id="authPassword" class="input" placeholder="At least 6 characters" autocomplete="current-password" minlength="6" required>
+            </div>
+            <div class="notice notice-warn" id="authError" hidden></div>
+            <button type="submit" class="btn btn-primary btn-block" id="authSubmit" style="padding:12px">
+              <i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i> Sign in
+            </button>
+            <button type="button" class="btn btn-ghost btn-block" id="authForgot" style="margin-top:8px">Forgot password?</button>
+          </form>
+        </div>
+
+        <div id="authAccount" hidden>
+          <p class="auth-who" style="font-size:.95rem">Signed in as <strong id="authUserName">Donor</strong></p>
+          <p class="small muted" id="authEmailOut"></p>
+          <p class="small muted" id="authRole"></p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+            <button class="btn btn-primary btn-sm" type="button" id="authManage"><i class="fa-solid fa-sliders" aria-hidden="true"></i> My donor profile</button>
+            <button class="btn btn-ghost btn-sm" type="button" id="authSignOut"><i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i> Sign out</button>
+          </div>
+        </div>
+
+        <p class="small muted" id="authNote" style="margin-top:14px">Your account is used only for donor matching and emergency requests. Numbers are masked for the public and revealed only to signed-in users.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Printable requisition -->
+  <div class="modal-backdrop" id="slipModal" role="dialog" aria-modal="true" aria-labelledby="slipTitle" aria-hidden="true">
+    <div class="modal" id="printArea">
+      <div class="modal-head no-print">
+        <div>
+          <h2>Emergency blood pass</h2>
+          <p>Share or print this requisition at the hospital</p>
+        </div>
+        <button class="icon-btn" type="button" data-action="close-modal" aria-label="Close pass"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="slip-box" style="border:2px dashed var(--brand);border-radius:14px;padding:22px">
+          <div style="text-align:center;border-bottom:2px solid var(--brand-soft);padding-bottom:12px;margin-bottom:14px">
+            <h2 id="slipTitle" style="color:var(--brand-ink);font-size:1.25rem;font-weight:800">🩸 LIFEDROP+ EMERGENCY BLOOD PASS</h2>
+            <p style="font-size:.78rem;color:var(--muted)">Official emergency blood requisition document</p>
+          </div>
+          <div id="slipContent" style="font-size:.85rem"></div>
+          <div style="margin-top:18px;padding:9px;background:var(--brand-soft);border-radius:8px;font-size:.72rem;color:var(--brand-ink);text-align:center">
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Presented via the LifeDrop+ emergency network
+          </div>
+        </div>
+        <div class="no-print" style="display:flex;gap:9px;margin-top:16px">
+          <button class="btn btn-primary btn-block" type="button" data-action="print-slip"><i class="fa-solid fa-print" aria-hidden="true"></i> Print pass</button>
+          <button class="btn btn-ghost" type="button" data-action="close-modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Command palette -->
+  <div class="modal-backdrop" id="paletteModal" role="dialog" aria-modal="true" aria-label="Command palette" aria-hidden="true">
+    <div class="modal palette">
+      <div class="palette-input-wrap">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input type="text" class="palette-input" id="paletteInput" data-autofocus placeholder="Search actions, sections and tools…" aria-label="Search actions" autocomplete="off">
+        <kbd class="palette-kbd">Esc</kbd>
+      </div>
+      <div class="palette-list" id="paletteList" role="listbox" aria-label="Actions"></div>
+      <div class="palette-foot">
+        <span><kbd>↑</kbd> <kbd>↓</kbd> navigate</span>
+        <span><kbd>Enter</kbd> run</span>
+        <span><kbd>Ctrl</kbd> + <kbd>K</kbd> toggle</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="false"></div>
+  <button class="to-top" type="button" id="toTop" data-action="scroll-top" aria-label="Back to top"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <div class="brand">
+            <span class="brand-icon"><i class="fa-solid fa-droplet" aria-hidden="true"></i></span>
+            <span>LifeDrop<span>+</span></span>
+          </div>
+          <p class="footer-about">A fast, private, single-file emergency blood network: donor discovery, compatibility matching, 90-day eligibility tracking, SOS dispatch and blood bank inventory.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Modules</h4>
+          <ul>
+            <li><a href="#compatibility">Compatibility engine</a></li>
+            <li><a href="#find">Smart donor search</a></li>
+            <li><a href="#sos">SOS dispatcher</a></li>
+            <li><a href="#inventory">Blood bank stock</a></li>
+            <li><a href="#register">Self-service profiles</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Built with</h4>
+          <ul>
+            <li>HTML5 · CSS3 · ES6+</li>
+            <li>LocalStorage persistence</li>
+            <li>No frameworks, no tracking</li>
+            <li>Accessible &amp; mobile-first</li>
+            <li><span class="footer-kbd">Ctrl + K for quick actions</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; <span id="year">2026</span> LifeDrop+. Educational prototype — always confirm with a licensed blood bank.</span>
+        <span>Built with care for safer transfusions.</span>
+      </div>
+    </div>
+  </footer>
+
+
+<script src="js/config.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+  if ('serviceWorker' in navigator && location.protocol !== 'file:' &&
+      location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>

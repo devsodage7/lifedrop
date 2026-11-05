@@ -1,0 +1,10 @@
+supabase
+README.md
+.git
+.gitignore
+.wrangler
+node_modules
+serve.py
+_headers
+.assetsignore
+wrangler.jsonc
