@@ -1,42 +1,43 @@
 # LifeDrop+
 
-**रक्तदाता शोधणारं app — शोध, SOS, blood bank stock, एकाच ठिकाणी.**
-फोनवर चालतं, होम स्क्रीनवर इन्स्टॉल होतं, इंटरनेट नसेल तरी शेल उघडतं. Play Store लागत नाही.
+**Blood donor discovery and emergency response web app — donor search, SOS requests and blood bank stock in one place.**
 
-🌐 **Live:** https://lifedrop-app.devsodage-7.workers.dev
+Runs in any mobile browser, installs to the home screen, and the shell still opens without a network connection. No Play Store install required.
+
+**Live:** https://lifedrop-app.devsodage-7.workers.dev
 
 ---
 
-## काय करता येतं
+## Features
 
-| गोष्ट | तपशील |
+| Feature | Details |
 |---|---|
-| **Donor search** | Blood group + city + eligibility + verified filter, sorting |
-| **Compatibility** | कोणाला कोणाचं रक्त चालतं — matrix + quick picker |
-| **90-day cooldown** | शेवटच्या donation पासून 90 दिवस — ready / cooldown badge |
-| **SOS requests** | Patient, hospital, units, urgency — live feed, resolve/delete |
-| **Blood bank stock** | 4 रुग्णालयांचा group-wise stock, admin मात्र बदलू शकतो |
-| **Register donor** | नाव, फोन, group, वय, वजन, शहर, शेवटची donation |
-| **My profile** | Sign in केलेला donor स्वतःचा profile पाहू/बदलू/delete करू शकतो |
-| **Reveal number** | Public ला फक्त शेवटचे ४ अंक; sign in केल्यावर खरा नंबर (logged + rate-limited) |
-| **Admin console** | Verify donors, stock update, demo data load/remove |
-| **PWA** | Android/iPhone होम स्क्रीन, offline shell |
+| **Donor search** | Blood group, city, eligibility and verified filters, with sorting |
+| **Compatibility** | Blood group compatibility matrix with a quick picker |
+| **90-day cooldown** | Tracks the 90-day gap since the last donation, with ready / cooldown badges |
+| **SOS requests** | Patient, hospital, units and urgency in a live feed; resolve or delete |
+| **Blood bank stock** | Group-wise stock for 4 hospitals, editable by admins only |
+| **Donor registration** | Name, phone, blood group, age, weight, city and last donation date |
+| **My profile** | Signed-in donors can view, update or delete their own profile |
+| **Contact reveal** | Public view shows only the last four digits; signed-in users can request the full number (logged and rate limited) |
+| **Admin console** | Verify donors, update stock, load or remove demo data |
+| **PWA** | Home screen install on Android and iPhone, offline shell |
 
 ---
 
 ## Technology
 
-- **Frontend:** plain HTML + CSS + JS (no build step, no framework)
-- **Backend:** Supabase — Postgres + Auth + Row Level Security + RPC
+- **Frontend:** plain HTML, CSS and JavaScript — no build step, no framework
+- **Backend:** Supabase — Postgres, Auth, Row Level Security and RPC functions
 - **Hosting:** Cloudflare Workers (static assets)
-- **Auth:** email + password (Supabase), email confirmation बंद
+- **Auth:** email and password via Supabase, email confirmation disabled
 
 ```
 lifedrop/
 ├─ index.html
 ├─ css/app.css
 ├─ js/
-│  ├─ config.js     ← Supabase URL + anon key
+│  ├─ config.js     ← Supabase URL and anon key
 │  ├─ cloud.js      ← REST/RPC store (auth, donors, SOS, stock)
 │  ├─ auth.js       ← sign in / sign up modal
 │  └─ app.js        ← UI logic
@@ -47,29 +48,29 @@ lifedrop/
 ├─ wrangler.jsonc
 ├─ serve.py
 └─ supabase/
-   ├─ schema.sql       ← पूर्ण DB (tables, RLS, RPC, seed)
-   └─ fix-grants.sql   ← table-level grants + insert guard
+   ├─ schema.sql       ← full database (tables, RLS, RPC, seed data)
+   └─ fix-grants.sql   ← table-level grants and insert guard
 ```
 
 ---
 
-## Privacy model (महत्त्वाचं)
+## Privacy model
 
-1. `donors` table वर **कोणालाही direct SELECT नाही** — anon किंवा authenticated दोघांनाही.
-2. Public search `donors_public` **view** वाचतो — त्यात फोनचे फक्त शेवटचे ४ अंक (`phone_hint`).
-3. खरा नंबर फक्त `donor_contact(p_id)` RPC मधून — फक्त **signed-in** user ला.
-4. प्रत्येक reveal `contact_events` मध्ये नोंदतो + **25 reveals/hour** limit.
-5. User स्वतःला `verified` करू शकत नाही — insert/update trigger हे force करतो.
-6. Admin फक्त `profiles.role = 'admin'` असलेला user.
+1. No client can `SELECT` from the `donors` table directly — neither anonymous nor authenticated users.
+2. Public search reads the `donors_public` view, which exposes only the last four digits of the phone number (`phone_hint`).
+3. The full number is available only through the `donor_contact(p_id)` RPC, and only to a **signed-in** user.
+4. Every reveal is written to `contact_events` and limited to **25 reveals per hour**.
+5. A user cannot mark their own record as `verified` — insert and update triggers enforce this.
+6. Admin access requires `profiles.role = 'admin'`.
 
 ---
 
-## Setup (नवीन Supabase project)
+## Setup (new Supabase project)
 
-1. Supabase मध्ये project बनवा → **SQL Editor** → `supabase/schema.sql` पूर्ण paste → Run.
-2. `supabase/fix-grants.sql` पण Run करा.
-3. **Authentication → Providers → Email** मध्ये *Confirm email* **बंद** करा (किंवा Management API ने `mailer_autoconfirm: true`).
-4. Project URL + anon key `js/config.js` मध्ये टाका:
+1. Create a project in Supabase, open the **SQL Editor** and run the full `supabase/schema.sql`.
+2. Run `supabase/fix-grants.sql` as well.
+3. In **Authentication → Providers → Email**, disable **Confirm email** (or set `mailer_autoconfirm: true` through the Management API).
+4. Add the project URL and anon key to `js/config.js`:
 
 ```js
 cloud: {
@@ -79,65 +80,63 @@ cloud: {
 }
 ```
 
-> `service_role` key कधीही frontend मध्ये टाकू नका.
+> Never place the `service_role` key in the frontend.
 
 ---
 
-## Admin कसा बनवायचा
+## Creating an admin
 
-1. App मध्ये आधी त्या email ने **sign up** करा (profile आपोआप तयार होतो).
-2. Supabase → SQL Editor:
+1. Sign up in the app with the admin email address (a profile is created automatically).
+2. In the Supabase SQL Editor:
 
 ```sql
 update profiles set role = 'admin' where email = 'you@example.com';
 ```
 
-3. App reload करा → Admin console उघडेल.
+3. Reload the app — the Admin console appears.
 
 ---
 
-## Local run
+## Local development
 
-```powershell
-cd C:\Users\devra\Desktop\dev\lifedrop
+```bash
 python serve.py        # http://localhost:5174
 ```
 
-## Deploy (Cloudflare Workers)
+## Deployment (Cloudflare Workers)
 
-```powershell
-cd C:\Users\devra\Desktop\dev\lifedrop
-node C:\Users\devra\AppData\Local\Programs\node\node_modules\wrangler\bin\wrangler.js deploy
+```bash
+wrangler deploy
 ```
 
-Live URL: `https://lifedrop-app.devsodage-7.workers.dev`
+Live URL: https://lifedrop-app.devsodage-7.workers.dev
 
-> `sw.js` मध्ये `CACHE` version वाढवा जेव्हा app files बदलता, म्हणजे जुनं cache अडकणार नाही.
+> Bump the `CACHE` version in `sw.js` whenever app files change, so clients do not keep serving the old cache.
 
 ---
 
 ## Database tables
 
-| Table | काम |
+| Table | Purpose |
 |---|---|
-| `profiles` | प्रत्येक auth user + role (donor/admin) |
-| `donors` | खरा donor data (phone private) |
-| `donors_public` (view) | public search साठी phone-free projection |
-| `sos_requests` | emergency requests |
-| `hospitals` | blood banks |
-| `inventory` | bank × group units |
-| `contact_events` | कोणी कोणाचा नंबर पाहिला (audit + rate limit) |
+| `profiles` | One row per authenticated user, with role (donor or admin) |
+| `donors` | Full donor records, with the phone number kept private |
+| `donors_public` (view) | Phone-free projection used by public search |
+| `sos_requests` | Emergency blood requests |
+| `hospitals` | Blood banks |
+| `inventory` | Units per bank and blood group |
+| `contact_events` | Audit trail of number reveals, used for rate limiting |
 
 ---
 
 ## Status
 
-- ✅ Cloud backend जोडलेला (auth, donors, SOS, stock, audit)
-- ✅ RLS + masking + rate limit verified
+- ✅ Cloud backend connected (auth, donors, SOS, stock, audit)
+- ✅ RLS, masking and rate limiting verified
 - ✅ Live on Cloudflare Workers
-- ✅ PWA manifest + offline shell
-- ⬜ Custom domain (हवं असल्यास `wrangler.jsonc` मध्ये routes जोडा)
+- ✅ PWA manifest and offline shell
+- ⬜ Custom domain (add routes in `wrangler.jsonc` if required)
 
 ---
 
-Crafted by **Devraj** · LifeDrop+ 2026
+Built by [Devraj Arun Sodage](https://github.com/devsodage7).
