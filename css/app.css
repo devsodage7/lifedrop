@@ -161,6 +161,11 @@
     .ticker { background: #4c0519; color: #fecdd3; font-size: .78rem; font-weight: 600; }
     .ticker-inner { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 8px 0; flex-wrap: wrap; }
     .ticker-inner p { display: flex; align-items: center; gap: 8px; }
+    .network-status { background: var(--info-bg); color: var(--text); border-bottom: 1px solid var(--line); }
+    .network-status.is-warning { background: var(--warn-bg); }
+    .network-status-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 9px; }
+    .network-status p { font-size: .8rem; font-weight: 600; }
+    .network-status .btn { flex: none; }
     .pulse-dot {
       width: 7px; height: 7px; border-radius: 50%; background: #fb7185; flex: none;
       animation: pulse-dot 1.4s ease-in-out infinite;
@@ -408,6 +413,7 @@
     .sos-grid { display: grid; grid-template-columns: 1.02fr 1fr; gap: 22px; align-items: start; }
     .sos-form { border-top: 5px solid var(--brand); }
     .sos-form h3 { display: flex; align-items: center; gap: 9px; font-size: 1.15rem; font-weight: 800; color: var(--brand); margin-bottom: 18px; }
+    .sos-privacy { margin: -8px 0 16px; }
     .sos-feed { padding: 22px; }
     .feed-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; }
     .feed-head h3 { font-size: 1.05rem; font-weight: 800; }

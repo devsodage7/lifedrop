@@ -1,8 +1,19 @@
 # LifeDrop+
 
-**Blood donor discovery and emergency response web app — donor search, SOS requests and blood bank stock in one place.**
+**Blood donor search and request app — donor profiles, shared requests and reported blood bank stock in one place.**
 
-Runs in any mobile browser, installs to the home screen, and the shell still opens without a network connection. No Play Store install required.
+Runs in a mobile browser and can be installed to the home screen. The app shell can open offline, but donor and stock data require a network connection.
+
+> **Important:** LifeDrop is not an emergency service or a medical decision tool.
+> Contact the hospital or blood bank directly. Stock listings may contain starter
+> data, and must be confirmed with the bank. A blood group match or a 90-day
+> interval is not medical clearance; the hospital decides suitability and
+> performs the necessary tests.
+
+> **Security review needed:** The live database's permissions and policies
+> have not been independently verified. Review them before relying on the
+> service. Do not re-run `supabase/schema.sql` on an existing project: it drops
+> tables.
 
 **Live:** https://lifedrop-app.devsodage-7.workers.dev
 
@@ -14,14 +25,17 @@ Runs in any mobile browser, installs to the home screen, and the shell still ope
 |---|---|
 | **Donor search** | Blood group, city, eligibility and verified filters, with sorting |
 | **Compatibility** | Blood group compatibility matrix with a quick picker |
-| **90-day cooldown** | Tracks the 90-day gap since the last donation, with ready / cooldown badges |
-| **SOS requests** | Patient, hospital, units and urgency in a live feed; resolve or delete |
-| **Blood bank stock** | Group-wise stock for 4 hospitals, editable by admins only |
+| **90-day reminder** | Calculates a 90-day interval from the reported last donation date; not an eligibility check |
+| **Requests** | Shared listings with hospital, units and urgency; no automatic donor notifications |
+| **Blood bank stock** | Reported group-wise counts and update times; source and availability must be confirmed |
 | **Donor registration** | Name, phone, blood group, age, weight, city and last donation date |
 | **My profile** | Signed-in donors can view, update or delete their own profile |
 | **Contact reveal** | Public view shows only the last four digits; signed-in users can request the full number (logged and rate limited) |
 | **Admin console** | Verify donors, update stock, load or remove demo data |
-| **PWA** | Home screen install on Android and iPhone, offline shell |
+| **PWA** | Home screen install on Android and iPhone, offline shell and network status |
+
+The patient name, contact number and notes are visible in the shared request
+feed. Avoid posting unnecessary medical details.
 
 ---
 
@@ -63,6 +77,11 @@ lifedrop/
 5. A user cannot mark their own record as `verified` — insert and update triggers enforce this.
 6. Admin access requires `profiles.role = 'admin'`.
 
+Cloud donor, request and stock snapshots are kept in memory rather than newly
+written to the local app data cache. Existing browser data is not deleted.
+Authentication still uses browser storage. The SQL starter rows are examples,
+not verified blood-bank inventory.
+
 ---
 
 ## Setup (new Supabase project)
@@ -103,6 +122,9 @@ update profiles set role = 'admin' where email = 'you@example.com';
 python serve.py        # http://localhost:5174
 ```
 
+Run the small cloud mapping tests with `node --test tests/cloud.test.cjs`.
+The tests use synthetic data and do not connect to Supabase.
+
 ## Deployment (Cloudflare Workers)
 
 ```bash
@@ -132,9 +154,9 @@ Live URL: https://lifedrop-app.devsodage-7.workers.dev
 ## Status
 
 - ✅ Cloud backend connected (auth, donors, SOS, stock, audit)
-- ✅ RLS, masking and rate limiting verified
+- ⬜ Production RLS, masking and rate limiting require independent verification
 - ✅ Live on Cloudflare Workers
-- ✅ PWA manifest and offline shell
+- ✅ PWA manifest and offline shell; current data needs a connection
 - ⬜ Custom domain (add routes in `wrangler.jsonc` if required)
 
 ---

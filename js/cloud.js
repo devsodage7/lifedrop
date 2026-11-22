@@ -168,12 +168,16 @@ window.LifeDropCloud = (function () {
     const byId = {};
     (hospitals || []).forEach((h) => {
       const stock = {};
-      groups.forEach((g) => { stock[g] = 0; });
-      byId[h.id] = { id: h.id, name: h.name, city: h.city, phone: h.phone, stock: stock };
+      const stockUpdatedAt = {};
+      groups.forEach((g) => { stock[g] = null; stockUpdatedAt[g] = null; });
+      byId[h.id] = { id: h.id, name: h.name, city: h.city, phone: h.phone, stock: stock, stockUpdatedAt: stockUpdatedAt };
     });
     (inventory || []).forEach((row) => {
       const h = byId[row.hospital_id];
-      if (h) h.stock[row.blood_group] = Number(row.units) || 0;
+      if (h && groups.includes(row.blood_group) && row.units != null && Number.isFinite(Number(row.units))) {
+        h.stock[row.blood_group] = Number(row.units);
+        h.stockUpdatedAt[row.blood_group] = row.updated_at || null;
+      }
     });
     return Object.keys(byId).map((id) => byId[id]);
   }
@@ -266,7 +270,7 @@ window.LifeDropCloud = (function () {
         rest('donors_public?select=*&order=created_at.desc&limit=1000'),
         rest('sos_requests?select=*&order=created_at.desc&limit=300'),
         rest('hospitals?select=*&order=id.asc'),
-        rest('inventory?select=hospital_id,blood_group,units'),
+        rest('inventory?select=hospital_id,blood_group,units,updated_at'),
       ]);
 
       const payload = {
@@ -375,6 +379,7 @@ window.LifeDropCloud = (function () {
 
     /* ---- inventory ---- */
     async updateStock(hospitalId, group, units) {
+      const updatedAt = new Date().toISOString();
       await rest('inventory?on_conflict=hospital_id,blood_group', {
         method: 'POST',
         headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
@@ -382,9 +387,10 @@ window.LifeDropCloud = (function () {
           hospital_id: hospitalId,
           blood_group: group,
           units: Math.max(0, Number(units) || 0),
-          updated_at: new Date().toISOString(),
+          updated_at: updatedAt,
         },
       });
+      return updatedAt;
     },
 
     /* ---- admin maintenance ---- */

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="LifeDrop+ is a smart blood donor finder and emergency response network with compatibility matching, 90-day eligibility tracking, live SOS requests and blood bank inventory.">
+  <meta name="description" content="LifeDrop+ helps people find potential blood donors, post requests and check reported blood bank stock.">
   <meta name="theme-color" content="#ffffff" id="metaThemeColor">
   <title>LifeDrop+ | Smart Blood Donor Finder &amp; Emergency Response</title>
 
@@ -39,8 +39,14 @@
   <!-- Emergency ticker -->
   <div class="ticker">
     <div class="wrap ticker-inner">
-      <p><span class="pulse-dot" aria-hidden="true"></span><strong>Emergency lifeline:</strong> 24/7 verified donor network is live.</p>
-      <p><i class="fa-regular fa-clock" aria-hidden="true"></i> Critical response target: under 15 minutes</p>
+      <p><span class="pulse-dot" aria-hidden="true"></span><strong>Need blood urgently?</strong> Contact your hospital or blood bank directly.</p>
+      <p><i class="fa-regular fa-clock" aria-hidden="true"></i> Donor responses and stock are not guaranteed.</p>
+    </div>
+  </div>
+  <div class="network-status" id="networkStatus">
+    <div class="wrap network-status-inner">
+      <p id="networkStatusText" role="status" aria-live="polite">Checking network data…</p>
+      <button class="btn btn-ghost btn-sm" type="button" data-action="refresh-network" id="networkRefresh">Refresh data</button>
     </div>
   </div>
 
@@ -77,17 +83,17 @@
     <!-- Hero -->
     <section class="hero" id="home">
       <div class="wrap hero-inner">
-        <span class="hero-badge"><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i> Verified community blood network</span>
-        <h1>Find the right blood donor<br><span>before the clock runs out.</span></h1>
-        <p class="hero-sub">Connect with verified voluntary donors in seconds. Scientific compatibility matching, automatic 90-day eligibility tracking, live emergency requests and blood bank stock — in one fast, private tool.</p>
+        <span class="hero-badge"><i class="fa-solid fa-heart-pulse" aria-hidden="true"></i> Community blood donor search</span>
+        <h1>Find potential blood donors<br><span>when every contact matters.</span></h1>
+        <p class="hero-sub">Search donor profiles, post a request and check reported stock. Confirm availability and medical suitability with the blood bank.</p>
         <div class="hero-actions">
           <a class="btn btn-sos" href="#sos"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Raise an SOS</a>
           <a class="btn btn-primary" href="#find"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Find donors</a>
           <a class="btn btn-ghost" href="#register" style="color:#e2e8f0;border-color:rgba(255,255,255,.28);background:rgba(255,255,255,.08)"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Become a donor</a>
         </div>
         <ul class="hero-points">
-          <li><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Verified profiles</li>
-          <li><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> 90-day safety cooldown</li>
+          <li><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> Profile verification filter</li>
+          <li><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> 90-day date reminder</li>
           <li><i class="fa-solid fa-lock" aria-hidden="true"></i> Numbers hidden from the public</li>
         </ul>
       </div>
@@ -102,7 +108,7 @@
         </div>
         <div class="stat">
           <div class="stat-ico green"><i class="fa-solid fa-user-check" aria-hidden="true"></i></div>
-          <div><div class="stat-num" id="statEligible">0</div><div class="stat-lbl">Ready now</div></div>
+          <div><div class="stat-num" id="statEligible">0</div><div class="stat-lbl">Available profiles</div></div>
         </div>
         <div class="stat">
           <div class="stat-ico amber"><i class="fa-solid fa-bell" aria-hidden="true"></i></div>
@@ -119,9 +125,9 @@
     <section class="section" id="compatibility">
       <div class="wrap">
         <div class="section-head">
-          <span class="eyebrow"><i class="fa-solid fa-dna" aria-hidden="true"></i> Scientific transfusion engine</span>
-          <h2 class="section-title">Blood compatibility matrix</h2>
-          <p class="section-sub">Pick the patient's blood group to instantly see who can safely donate and who they can donate to. Rules follow red-cell antigen compatibility.</p>
+          <span class="eyebrow"><i class="fa-solid fa-dna" aria-hidden="true"></i> Red-cell matching guide</span>
+          <h2 class="section-title">Blood group compatibility</h2>
+          <p class="section-sub">Explore general ABO and Rh red-cell matches. The hospital must confirm the right component and perform the required tests and crossmatch.</p>
         </div>
 
         <div class="card matrix">
@@ -167,8 +173,8 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i> Search &amp; connect</span>
-          <h2 class="section-title">Locate available blood donors</h2>
-          <p class="section-sub">Search verified voluntary donors with live eligibility status. Compatibility mode automatically finds every group that can safely donate to the patient.</p>
+          <h2 class="section-title">Find potential blood donors</h2>
+          <p class="section-sub">Search self-reported profiles by city and blood group. A match or a completed 90-day interval does not establish medical eligibility.</p>
         </div>
 
         <div class="card search-card">
@@ -194,7 +200,7 @@
             <div class="field">
               <label for="searchEligibility"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i> Eligibility</label>
               <select id="searchEligibility" class="select">
-                <option value="eligible">Ready to donate now</option>
+                <option value="eligible">Available; no recent donation recorded</option>
                 <option value="available">Available profiles</option>
                 <option value="all">All registered donors</option>
               </select>
@@ -203,7 +209,7 @@
               <label for="searchSort"><i class="fa-solid fa-arrow-down-wide-short" aria-hidden="true"></i> Sort by</label>
               <select id="searchSort" class="select">
                 <option value="recommended">Recommended</option>
-                <option value="soonest">Soonest eligible</option>
+                <option value="soonest">Shortest remaining interval</option>
                 <option value="name">Name (A–Z)</option>
                 <option value="newest">Newest profiles</option>
               </select>
@@ -226,7 +232,7 @@
 
         <div class="results-bar">
           <p class="results-count" id="resultsMeta" aria-live="polite"></p>
-          <p class="inline-hint"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Cooldown is calculated automatically from the last donation date.</p>
+          <p class="inline-hint"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Dates are self-reported. The blood bank decides eligibility.</p>
         </div>
 
         <div class="donor-grid" id="donorContainer"></div>
@@ -241,14 +247,15 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow" style="background:var(--brand-soft);color:var(--brand-ink)"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> High priority</span>
-          <h2 class="section-title">Emergency blood request dispatcher</h2>
-          <p class="section-sub">Broadcast a critical requirement, see matching ready donors instantly, and share a ready-to-send WhatsApp alert or printable requisition pass.</p>
+          <h2 class="section-title">Post a blood request</h2>
+          <p class="section-sub">Post a shared listing and search for possible matches. Posting does not automatically notify donors; contact the hospital or blood bank directly.</p>
         </div>
 
         <div class="sos-grid">
           <div class="card panel sos-form">
             <h3><i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i> Raise an emergency request</h3>
-            <form id="sosForm" novalidate>
+              <p class="field-hint sos-privacy">The patient name, contact number and case details are visible in the request feed and included when you share a request. Avoid unnecessary medical details.</p>
+              <form id="sosForm" novalidate>
               <div class="form-grid">
                 <div class="field">
                   <label for="sosPatient">Patient full name *</label>
@@ -290,7 +297,7 @@
                 </div>
               </div>
               <button type="submit" class="btn btn-sos btn-block" style="margin-top:16px;padding:13px">
-                <i class="fa-solid fa-bullhorn" aria-hidden="true"></i> Broadcast emergency SOS
+                <i class="fa-solid fa-bullhorn" aria-hidden="true"></i> Post request
               </button>
             </form>
           </div>
@@ -298,8 +305,8 @@
           <div class="card sos-feed">
             <div class="feed-head">
               <div>
-                <h3>Live requests</h3>
-                <p>Broadcast queue · auto-expires after 72 hours</p>
+                <h3>Shared requests</h3>
+                <p>Requests older than 72 hours are marked expired here.</p>
               </div>
               <div class="segmented" role="tablist" aria-label="Filter requests">
                 <button class="seg is-active" type="button" role="tab" aria-selected="true" data-action="sos-filter" data-filter="active">Active <span class="seg-count" id="sosActiveCount">0</span></button>
@@ -398,8 +405,8 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow"><i class="fa-solid fa-hospital" aria-hidden="true"></i> Hospital network</span>
-          <h2 class="section-title">Blood bank live inventory</h2>
-          <p class="section-sub">Stock levels across affiliated blood banks. Switch hospitals to check availability before travelling.</p>
+          <h2 class="section-title">Reported blood bank stock</h2>
+          <p class="section-sub">Listings may include starter data and are not independently verified. Call the blood bank to confirm stock and the required component before travelling.</p>
         </div>
 
         <div class="inventory-toolbar">
@@ -407,7 +414,7 @@
             <label for="hospitalSelect"><i class="fa-solid fa-building-circle-check" aria-hidden="true"></i> Blood bank</label>
             <select id="hospitalSelect" class="select"></select>
           </div>
-          <p class="inline-hint"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Status reflects units available per bank.</p>
+          <p class="inline-hint"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> A recent update does not guarantee availability.</p>
         </div>
 
         <div id="inventoryAlert"></div>
@@ -503,7 +510,7 @@
             </div>
             <div class="data-card">
               <h4><i class="fa-solid fa-hospital" aria-hidden="true"></i> Blood bank stock</h4>
-              <p>Update units available. Changes go live for everyone instantly.</p>
+              <p>Update reported units. Other users see changes after refreshing their data.</p>
               <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
                 <div class="field" style="margin:0;min-width:200px">
                   <label for="stockHospital">Blood bank</label>

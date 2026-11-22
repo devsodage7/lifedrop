@@ -43,7 +43,7 @@
     };
 
     const FACTS = {
-      'O-':  'O-negative is the universal red-cell donor. It can be given to every blood type in an emergency when the patient group is unknown.',
+      'O-':  'O-negative red cells are commonly used in emergencies. A hospital decides which blood product is appropriate.',
       'O+':  'O-positive is the most common group worldwide. It can donate to all positive groups and can receive only from O donors.',
       'A-':  'A-negative can donate red cells to A and AB patients (positive or negative) and can receive only from O- and A-.',
       'A+':  'A-positive is in constant hospital demand. It can donate to A+ and AB+ patients and receive from A and O donors.',
@@ -180,11 +180,11 @@
     }
     function eligibility(lastDonation) {
       if (!lastDonation || !isValidDay(lastDonation)) {
-        return { state: 'eligible', daysLeft: 0, daysSince: null, label: 'Ready to donate' };
+        return { state: 'eligible', daysLeft: 0, daysSince: null, label: 'No donation date recorded' };
       }
       const since = todayDayNum() - dayNum(lastDonation);
       if (since >= CONFIG.cooldownDays) {
-        return { state: 'eligible', daysLeft: 0, daysSince: since, label: 'Eligible' };
+        return { state: 'eligible', daysLeft: 0, daysSince: since, label: '90-day interval complete' };
       }
       const left = Math.max(1, CONFIG.cooldownDays - since);
       return { state: 'cooldown', daysLeft: left, daysSince: since, label: 'Cooldown · ' + left + 'd left' };
@@ -209,7 +209,7 @@
         { id: 'DNR-1012', name: 'Sanjay Rao', phone: '9743210987', bloodGroup: 'AB+', age: 40, weight: 85, gender: 'Male', city: 'Bengaluru', lastDonation: daysAgoISO(150), verified: false, available: true, createdAt: hoursAgoISO(380) },
         { id: 'DNR-1013', name: 'Divya Menon', phone: '9847001122', bloodGroup: 'B+', age: 26, weight: 55, gender: 'Female', city: 'Hyderabad', lastDonation: daysAgoISO(88), verified: true, available: true, createdAt: hoursAgoISO(320) },
         { id: 'DNR-1014', name: 'Imran Khan', phone: '9822004455', bloodGroup: 'O-', age: 34, weight: 78, gender: 'Male', city: 'Pune', lastDonation: null, verified: true, available: true, createdAt: hoursAgoISO(260) }
-      ];
+      ].map((donor) => Object.assign(donor, { demo: true }));
     }
 
     function seedSOS() {
@@ -217,7 +217,7 @@
         { id: 'SOS-5001', patient: 'Sunita Verma', phone: '9876501234', bloodGroup: 'O-', units: 2, hospital: 'KEM Hospital', city: 'Mumbai', urgency: 'critical', notes: 'Road accident, trauma ICU. Two units required immediately.', status: 'ACTIVE', createdAt: hoursAgoISO(2) },
         { id: 'SOS-5002', patient: 'Ramesh Joshi', phone: '9823401234', bloodGroup: 'A+', units: 3, hospital: 'Ruby Hall Clinic', city: 'Pune', urgency: 'urgent', notes: 'Open-heart surgery scheduled for tomorrow morning.', status: 'ACTIVE', createdAt: hoursAgoISO(5) },
         { id: 'SOS-5003', patient: 'Kavya Reddy', phone: '9845567788', bloodGroup: 'B+', units: 1, hospital: 'Manipal Hospital', city: 'Bengaluru', urgency: 'routine', notes: 'Scheduled transfusion for thalassaemia patient.', status: 'ACTIVE', createdAt: hoursAgoISO(30) }
-      ];
+      ].map((request) => Object.assign(request, { demo: true }));
     }
 
     function seedHospitals() {
@@ -234,8 +234,12 @@
        ==================================================================== */
     let state = loadState();
     let storageOK = true;
+    let lastSuccessfulSync = null;
+    let syncStatus = CLOUD_ON ? 'checking' : 'demo';
 
     function loadState() {
+      // A local snapshot may contain old cloud records or sample data.
+      if (CLOUD_ON) return normalizeState({});
       try {
         const raw = localStorage.getItem(DB_KEY);
         if (raw) return normalizeState(JSON.parse(raw));
@@ -266,7 +270,7 @@
       const donors = Array.isArray(source.donors) ? source.donors.map(normalizeDonor).filter(Boolean) : (seedOk ? seedDonors() : []);
       const sos = Array.isArray(source.sos) ? source.sos.map(normalizeSOS).filter(Boolean) : (seedOk ? seedSOS() : []);
       let hospitals = Array.isArray(source.hospitals) ? source.hospitals.map(normalizeHospital).filter(Boolean) : (seedOk ? seedHospitals() : []);
-      if (!hospitals.length) hospitals = seedHospitals();
+      if (!hospitals.length && seedOk) hospitals = seedHospitals();
       const theme = source.prefs && (source.prefs.theme === 'dark' || source.prefs.theme === 'light') ? source.prefs.theme : null;
       return {
         version: DB_VERSION,
@@ -296,6 +300,7 @@
         lastDonation: toDateOnly(raw.lastDonation),
         verified: raw.verified === true,
         available: raw.available !== false,
+        demo: raw.demo === true,
         createdAt: isValidISO(raw.createdAt) ? raw.createdAt : new Date().toISOString()
       };
     }
@@ -313,6 +318,7 @@
         urgency: ['critical', 'urgent', 'routine'].includes(raw.urgency) ? raw.urgency : 'urgent',
         notes: String(raw.notes || 'Urgent medical requirement.').slice(0, 400),
         status: raw.status === 'RESOLVED' ? 'RESOLVED' : 'ACTIVE',
+        demo: raw.demo === true,
         createdAt: isValidISO(raw.createdAt) ? raw.createdAt : new Date().toISOString()
       };
     }
@@ -320,13 +326,21 @@
     function normalizeHospital(raw) {
       if (!raw || typeof raw !== 'object') return null;
       const stock = {};
-      GROUPS.forEach((g) => { stock[g] = clamp(parseInt(raw.stock && raw.stock[g], 10) || 0, 0, 9999); });
+      const stockUpdatedAt = {};
+      GROUPS.forEach((g) => {
+        const value = raw.stock && raw.stock[g];
+        stock[g] = value == null || value === '' || !Number.isFinite(Number(value))
+          ? null : clamp(parseInt(value, 10), 0, 9999);
+        const date = raw.stockUpdatedAt && raw.stockUpdatedAt[g];
+        stockUpdatedAt[g] = isValidISO(date) ? date : null;
+      });
       return {
         id: String(raw.id || uid('H')),
         name: String(raw.name || 'Blood bank').trim().slice(0, 90),
         city: String(raw.city || '').trim().slice(0, 60),
         phone: digits(raw.phone).slice(0, 12),
-        stock: stock
+        stock: stock,
+        stockUpdatedAt: stockUpdatedAt
       };
     }
 
@@ -338,6 +352,7 @@
 
     function saveState(silent) {
       state.updatedAt = new Date().toISOString();
+      if (CLOUD_ON) return;
       try {
         localStorage.setItem(DB_KEY, JSON.stringify(state));
       } catch (e) {
@@ -364,26 +379,32 @@
       if (!payload) return;
       state.donors = payload.donors || [];
       state.sos = payload.sos || [];
-      if (payload.hospitals && payload.hospitals.length) state.hospitals = payload.hospitals;
+      state.hospitals = Array.isArray(payload.hospitals) ? payload.hospitals : [];
       if (payload.myDonor) revealedPhones[payload.myDonor.id] = payload.myDonor.phone;
       state.updatedAt = new Date().toISOString();
+      lastSuccessfulSync = new Date();
+      syncStatus = 'fresh';
       saveState(true);
       buildHospitalSelect(true);
       renderAll();
+      renderNetworkStatus();
     }
 
     let cloudRefreshing = null;
     async function cloudRefresh(silent) {
       if (!CLOUD_ON) return;
       if (cloudRefreshing) return cloudRefreshing;
+      syncStatus = 'checking';
+      renderNetworkStatus();
       cloudRefreshing = (async () => {
         try {
           const payload = await CLOUD.pull();
           applyRemote(payload);
           if (!silent) toast('Network data refreshed.', 'info');
         } catch (e) {
+          syncStatus = 'unavailable';
+          renderNetworkStatus();
           if (!silent) toast(e.message || 'Could not reach the donor network.', 'error');
-          else console.warn('LifeDrop+ network:', e);
         } finally {
           cloudRefreshing = null;
         }
@@ -483,6 +504,9 @@
     const paletteList = $('paletteList');
     const toastContainer = $('toastContainer');
     const toTop = $('toTop');
+    const networkStatus = $('networkStatus');
+    const networkStatusText = $('networkStatusText');
+    const networkRefresh = $('networkRefresh');
     /* ====================================================================
        VIEW STATE
        ==================================================================== */
@@ -504,6 +528,29 @@
       verified: false,
       limit: STEP
     };
+
+    function renderNetworkStatus() {
+      if (!networkStatus || !networkStatusText || !networkRefresh) return;
+      networkRefresh.hidden = !CLOUD_ON;
+      const old = lastSuccessfulSync && Date.now() - lastSuccessfulSync.getTime() > 5 * 60 * 1000;
+      const warning = !CLOUD_ON || navigator.onLine === false || syncStatus === 'unavailable' || old;
+      networkStatus.classList.toggle('is-warning', !!warning);
+      if (!CLOUD_ON) {
+        networkStatusText.textContent = 'Demo mode: data stays on this device. Do not use sample entries for an emergency.';
+      } else if (navigator.onLine === false || syncStatus === 'unavailable') {
+        networkStatusText.textContent = lastSuccessfulSync
+          ? 'Network unavailable. Results may be outdated; last refresh ' + formatDateTime(lastSuccessfulSync) + '.'
+          : 'Network unavailable. No current donor, request or stock data is available.';
+      } else if (syncStatus === 'checking') {
+        networkStatusText.textContent = lastSuccessfulSync
+          ? 'Refreshing network data. Existing results may be outdated.'
+          : 'Checking the donor network. Contact a blood bank directly if urgent.';
+      } else if (old) {
+        networkStatusText.textContent = 'Results may be outdated. Last refresh ' + formatDateTime(lastSuccessfulSync) + '.';
+      } else if (lastSuccessfulSync) {
+        networkStatusText.textContent = 'Network data refreshed ' + formatDateTime(lastSuccessfulSync) + '. Confirm details directly.';
+      }
+    }
 
     /* ====================================================================
        THEME
@@ -674,9 +721,11 @@
     }
 
     function countCompatibleReady(group) {
+      if (!CLOUD_ON) return 0;
       const rule = RULES[group];
       if (!rule) return 0;
       return state.donors.filter((d) =>
+        !d.demo &&
         rule.receive.includes(d.bloodGroup) &&
         d.available &&
         eligibility(d.lastDonation).state === 'eligible'
@@ -686,7 +735,7 @@
     function updateCompatCta() {
       const count = countCompatibleReady(selectedBlood);
       compatCtaText.textContent = count
-        ? 'Find ' + count + ' ready donor' + (count === 1 ? '' : 's') + ' for ' + selectedBlood
+        ? 'Find ' + count + ' potential donor' + (count === 1 ? '' : 's') + ' for ' + selectedBlood
         : 'Search donors for ' + selectedBlood;
     }
 
@@ -737,7 +786,7 @@
     function donorCard(d) {
       const el = eligibility(d.lastDonation);
       const statusCls = !d.available ? 'paused' : el.state;
-      const statusText = !d.available ? 'Paused' : (el.state === 'eligible' ? 'Ready' : el.daysLeft + 'd cooldown');
+      const statusText = !d.available ? 'Paused' : (el.state === 'eligible' ? el.label : el.daysLeft + 'd cooldown');
       const need = searchState.blood || d.bloodGroup;
       const phone = d.phone || revealedPhones[d.id] || '';
       const message = encodeURIComponent(
@@ -751,7 +800,7 @@
         '<div class="donor-top">' +
           '<div class="avatar" aria-hidden="true">' + esc(initials(d.name)) + '</div>' +
           '<div class="donor-id">' +
-            '<h3>' + esc(d.name) + (d.verified ? ' <i class="fa-solid fa-circle-check verified" role="img" title="Verified donor" aria-label="Verified donor"></i>' : '') + '</h3>' +
+            '<h3>' + esc(d.name) + (d.verified && !d.demo ? ' <i class="fa-solid fa-circle-check verified" role="img" title="Profile marked verified" aria-label="Profile marked verified"></i>' : '') + '</h3>' +
             '<p><i class="fa-solid fa-location-dot" aria-hidden="true"></i> ' + esc(d.city) + '</p>' +
           '</div>' +
           '<span class="blood-badge">' + esc(d.bloodGroup) + '</span>' +
@@ -759,12 +808,14 @@
         '<dl class="donor-meta">' +
           '<div><dt>Age / gender</dt><dd>' + esc(d.age) + ' yrs · ' + esc(d.gender) + '</dd></div>' +
           '<div><dt>Weight</dt><dd>' + esc(d.weight) + ' kg</dd></div>' +
-          '<div><dt>Last donated</dt><dd>' + (d.lastDonation ? esc(formatDate(d.lastDonation)) : 'First-time donor') + '</dd></div>' +
+          '<div><dt>Last donated</dt><dd>' + (d.lastDonation ? esc(formatDate(d.lastDonation)) : 'No date recorded') + '</dd></div>' +
           '<div><dt>Status</dt><dd><span class="badge badge-' + statusCls + '">' + esc(statusText) + '</span></dd></div>' +
         '</dl>' +
         '<div class="cooldown" aria-hidden="true"><span style="width:' + pct + '%"></span></div>' +
         '<div class="donor-actions">' +
-          (phone
+          (d.demo || !CLOUD_ON
+            ? '<span class="small muted">Sample or local-only profile — do not contact from this demo.</span>'
+            : phone
             ? '<a class="btn btn-dark btn-sm" href="tel:' + esc(phone) + '"><i class="fa-solid fa-phone" aria-hidden="true"></i> Call</a>' +
               '<a class="btn btn-wa btn-sm" href="' + wa + '" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp</a>'
             : '<button class="btn btn-dark btn-sm" type="button" data-action="reveal-phone" data-id="' + esc(d.id) + '">' +
@@ -777,7 +828,7 @@
       return '<div class="empty-state">' +
         '<i class="fa-solid fa-user-slash" aria-hidden="true"></i>' +
         '<h3>No matching donors yet</h3>' +
-        '<p style="max-width:440px">Try a nearby city, switch to “All compatible groups”, or raise an SOS so the network can respond.</p>' +
+        '<p style="max-width:440px">Try a nearby city, switch to “All compatible groups”, or contact a blood bank directly.</p>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px">' +
           '<button class="btn btn-ghost btn-sm" type="button" data-action="reset-filters"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Clear filters</button>' +
           '<a class="btn btn-sos btn-sm" href="#sos"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i> Raise SOS</a>' +
@@ -880,7 +931,7 @@
       syncSearchInputs();
       renderDonors();
       go('#find');
-      toast('Showing donors who can safely donate to a ' + searchState.blood + ' patient.', 'info');
+      toast('Showing potential red-cell matches for ' + searchState.blood + '. The hospital must confirm suitability.', 'info');
     }
 
     /* ====================================================================
@@ -895,9 +946,11 @@
     }
 
     function countMatching(blood, city) {
+      if (!CLOUD_ON) return 0;
       const rule = RULES[blood];
       if (!rule) return 0;
       return state.donors.filter((d) =>
+        !d.demo &&
         rule.receive.includes(d.bloodGroup) &&
         (!city || cityMatch(d.city, city)) &&
         d.available &&
@@ -922,7 +975,8 @@
 
       return '<article class="sos-card sos-' + status.cls + '">' +
         '<div class="sos-top">' +
-          '<div><span class="badge badge-' + urgency.cls + '">' + urgency.label + '</span> ' +
+          '<div>' + (item.demo || !CLOUD_ON ? '<span class="badge badge-routine">Sample / local only</span> ' : '') +
+            '<span class="badge badge-' + urgency.cls + '">' + urgency.label + '</span> ' +
             '<span class="badge badge-' + status.cls + '">' + status.label + '</span></div>' +
           '<time datetime="' + esc(item.createdAt) + '" title="' + esc(formatDateTime(item.createdAt)) + '">' + timeAgo(item.createdAt) + '</time>' +
         '</div>' +
@@ -931,8 +985,9 @@
           ' <span aria-hidden="true">·</span> <i class="fa-solid fa-hospital" aria-hidden="true"></i> ' + esc(item.hospital) + ', ' + esc(item.city) + '</p>' +
         '<p class="sos-notes">' + esc(item.notes) + '</p>' +
         '<div class="sos-actions">' +
-          '<a class="btn btn-dark" href="tel:' + esc(digits(item.phone)) + '"><i class="fa-solid fa-phone" aria-hidden="true"></i> Call</a>' +
-          '<a class="btn btn-wa" href="' + wa + '" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Share</a>' +
+          (item.demo || !CLOUD_ON ? '' :
+            '<a class="btn btn-dark" href="tel:' + esc(digits(item.phone)) + '"><i class="fa-solid fa-phone" aria-hidden="true"></i> Call</a>' +
+            '<a class="btn btn-wa" href="' + wa + '" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Share</a>') +
           '<button class="btn btn-soft" type="button" data-action="view-matches" data-id="' + esc(item.id) + '">' +
             '<i class="fa-solid fa-users" aria-hidden="true"></i> ' + matches + ' match' + (matches === 1 ? '' : 'es') + '</button>' +
           '<button class="btn btn-ghost" type="button" data-action="open-slip" data-id="' + esc(item.id) + '">' +
@@ -969,7 +1024,7 @@
       event.preventDefault();
       if (!sosForm.reportValidity()) return;
       if (CLOUD_ON && !authUser()) {
-        needSignIn('Sign in to broadcast an emergency SOS. It takes 20 seconds.');
+        needSignIn('Sign in to post a blood request.');
         return;
       }
 
@@ -1025,7 +1080,9 @@
 
       const matches = countMatching(bloodGroup, city);
       toast(
-        'SOS is live. ' + matches + ' ready donor' + (matches === 1 ? '' : 's') + ' match in ' + city + '.',
+        CLOUD_ON
+          ? 'Request posted. Donors are not automatically notified. ' + matches + ' potential match' + (matches === 1 ? '' : 'es') + ' in ' + city + '.'
+          : 'Request saved on this device only. It was not sent to a donor network.',
         'success',
         matches ? { label: 'View matches', onClick: () => viewMatches(item.id) } : null
       );
@@ -1049,7 +1106,7 @@
       syncSearchInputs();
       renderDonors();
       go('#find');
-      toast('Showing ready donors compatible with ' + item.bloodGroup + ' near ' + city + '.', 'info');
+      toast('Showing potential red-cell matches near ' + city + '. The hospital must confirm suitability.', 'info');
     }
 
     async function resolveSOS(id) {
@@ -1094,12 +1151,12 @@
       if (el.state === 'eligible') {
         cooldownNotice.className = 'notice notice-ok';
         cooldownNotice.innerHTML = '<i class="fa-solid fa-circle-check" aria-hidden="true"></i>' +
-          '<span><strong>Eligible today.</strong> You can safely donate now.</span>';
+          '<span><strong>90-day interval complete.</strong> The blood bank must still confirm whether you can donate.</span>';
       } else {
         cooldownNotice.className = 'notice notice-warn';
         cooldownNotice.innerHTML = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>' +
-          '<span><strong>' + el.daysLeft + ' days of cooldown remaining.</strong> You can donate again on ' +
-          formatDate(addDaysISO(value, CONFIG.cooldownDays)) + '.</span>';
+          '<span><strong>' + el.daysLeft + ' days remain in the 90-day interval.</strong> The interval ends on ' +
+          formatDate(addDaysISO(value, CONFIG.cooldownDays)) + '; ask the blood bank about eligibility.</span>';
       }
     }
 
@@ -1219,7 +1276,7 @@
         return;
       }
       const el = eligibility(donor.lastDonation);
-      const statusText = !donor.available ? 'Paused' : (el.state === 'eligible' ? 'Ready to donate' : el.daysLeft + ' days left in cooldown');
+      const statusText = !donor.available ? 'Paused' : (el.state === 'eligible' ? el.label : el.daysLeft + ' days left in cooldown');
       const statusCls = !donor.available ? 'paused' : el.state;
       manageResult.innerHTML = '<div class="manage-profile">' +
         '<div class="manage-top">' +
@@ -1256,7 +1313,7 @@
         saveState();
         renderAll();
       }
-      toast('Donation logged. Next eligible date: ' + formatDate(addDaysISO(todayISO(), CONFIG.cooldownDays)) + '.', 'success');
+      toast('Donation logged. 90-day interval ends on ' + formatDate(addDaysISO(todayISO(), CONFIG.cooldownDays)) + '. Check eligibility with the blood bank.', 'success');
     }
 
     async function manageToggle(id) {
@@ -1298,73 +1355,43 @@
        ==================================================================== */
     function buildHospitalSelect(preserve) {
       const previous = preserve ? hospitalSelect.value : '';
-      hospitalSelect.innerHTML = '<option value="all">All hospitals (network average)</option>' +
-        state.hospitals.map((h) => '<option value="' + esc(h.id) + '">' + esc(h.name) + ' — ' + esc(h.city) + '</option>').join('');
-      if (preserve && (previous === 'all' || state.hospitals.some((h) => h.id === previous))) {
+      hospitalSelect.innerHTML = state.hospitals.length
+        ? state.hospitals.map((h) => '<option value="' + esc(h.id) + '">' + esc(h.name) + ' — ' + esc(h.city) + '</option>').join('')
+        : '<option value="">No blood banks available</option>';
+      if (preserve && state.hospitals.some((h) => h.id === previous)) {
         hospitalSelect.value = previous;
       } else {
-        hospitalSelect.value = state.hospitals[0] ? state.hospitals[0].id : 'all';
+        hospitalSelect.value = state.hospitals[0] ? state.hospitals[0].id : '';
       }
-    }
-
-    function stockStatus(avg) {
-      if (avg <= 0) return { cls: 'critical', label: 'Out of stock' };
-      if (avg <= 3) return { cls: 'critical', label: 'Critical' };
-      if (avg <= 8) return { cls: 'low', label: 'Low' };
-      if (avg <= 16) return { cls: 'ok', label: 'Adequate' };
-      return { cls: 'high', label: 'Healthy' };
     }
 
     function renderInventory() {
-      const scope = hospitalSelect.value;
-      const banks = scope === 'all' ? state.hospitals : state.hospitals.filter((h) => h.id === scope);
-      if (!banks.length) {
+      const bank = state.hospitals.find((h) => h.id === hospitalSelect.value);
+      if (!bank) {
         inventoryGrid.innerHTML = '';
-        inventoryAlert.innerHTML = '<div class="alert alert-warn"><i class="fa-solid fa-circle-info" aria-hidden="true"></i>No blood banks configured.</div>';
+        inventoryAlert.innerHTML = '<div class="alert alert-warn"><i class="fa-solid fa-circle-info" aria-hidden="true"></i>No blood bank data available. Contact a blood bank directly.</div>';
         return;
       }
-      const totals = {};
-      GROUPS.forEach((g) => { totals[g] = 0; });
-      banks.forEach((bank) => GROUPS.forEach((g) => { totals[g] += Number(bank.stock[g] || 0); }));
-      const perBank = scope === 'all' ? banks.length : 1;
-
-      const data = GROUPS.map((g) => {
-        const units = totals[g];
-        const avg = units / perBank;
-        return { g: g, units: units, avg: avg, status: stockStatus(avg) };
-      });
-
-      inventoryGrid.innerHTML = data.map((row) => {
-        const pct = clamp(Math.round((row.avg / 25) * 100), 0, 100);
-        return '<article class="stock-card stock-' + row.status.cls + '">' +
-          '<div class="stock-head"><span class="stock-type">' + row.g + '</span>' +
-            '<span class="badge badge-' + (row.status.cls === 'low' ? 'low' : row.status.cls) + '">' + row.status.label + '</span></div>' +
-          '<div class="stock-units"><strong>' + row.units + '</strong> unit' + (row.units === 1 ? '' : 's') + '</div>' +
-          '<div class="stock-bar" aria-hidden="true"><span style="width:' + pct + '%"></span></div>' +
-          '<div class="stock-foot">' + (scope === 'all' ? 'avg ' + row.avg.toFixed(1) + ' / bank' : 'available now') + '</div>' +
+      inventoryGrid.innerHTML = GROUPS.map((group) => {
+        const units = bank.stock[group];
+        const reported = units != null && Number.isFinite(Number(units));
+        const updated = bank.stockUpdatedAt && bank.stockUpdatedAt[group];
+        return '<article class="stock-card">' +
+          '<div class="stock-head"><span class="stock-type">' + group + '</span>' +
+            '<span class="badge badge-routine">' + (reported ? 'Reported' : 'Not reported') + '</span></div>' +
+          '<div class="stock-units"><strong>' + (reported ? esc(units) : '—') + '</strong>' +
+            (reported ? ' unit' + (Number(units) === 1 ? '' : 's') : '') + '</div>' +
+          '<div class="stock-foot">' + (isValidISO(updated) ? 'Recorded: ' + esc(formatDateTime(updated)) : 'Update time unavailable') + '</div>' +
         '</article>';
       }).join('');
-
-      const low = data.filter((row) => row.status.cls === 'critical' || row.status.cls === 'low');
-      if (low.length) {
-        inventoryAlert.innerHTML = '<div class="alert alert-warn">' +
-          '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>' +
-          '<div><strong>' + low.length + ' blood type' + (low.length === 1 ? '' : 's') + ' need attention.</strong><br>' +
-            low.map((row) => row.g + ' — ' + row.units + ' unit' + (row.units === 1 ? '' : 's') + ' (' + row.status.label + ')').join(' · ') +
-          '</div>' +
-          (scope !== 'all' && banks[0].phone
-            ? '<a class="btn btn-ghost btn-sm" href="tel:' + esc(banks[0].phone) + '"><i class="fa-solid fa-phone" aria-hidden="true"></i> Call bank</a>'
-            : '') +
-        '</div>';
-      } else {
-        inventoryAlert.innerHTML = '<div class="alert alert-ok">' +
-          '<i class="fa-solid fa-circle-check" aria-hidden="true"></i>' +
-          '<div><strong>Stock looks healthy.</strong> Every blood group is above the low-stock threshold for this selection.</div>' +
-          (scope !== 'all' && banks[0].phone
-            ? '<a class="btn btn-ghost btn-sm" href="tel:' + esc(banks[0].phone) + '"><i class="fa-solid fa-phone" aria-hidden="true"></i> Call bank</a>'
-            : '') +
-        '</div>';
-      }
+      inventoryAlert.innerHTML = '<div class="alert alert-warn">' +
+        '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>' +
+        '<div><strong>' + (CLOUD_ON ? 'Unverified listing.' : 'Demo stock only.') + '</strong> ' +
+          'These numbers may be sample or outdated data. Confirm directly with the blood bank.</div>' +
+        (CLOUD_ON && bank.phone
+          ? '<a class="btn btn-ghost btn-sm" href="tel:' + esc(digits(bank.phone)) + '"><i class="fa-solid fa-phone" aria-hidden="true"></i> Call listed number</a>'
+          : '') +
+      '</div>';
     }
 
     /* ====================================================================
@@ -1421,7 +1448,8 @@
     function syncStockUnits() {
       if (!stockHospital || !stockGroup || !stockUnits) return;
       const bank = state.hospitals.find((h) => h.id === stockHospital.value);
-      stockUnits.value = bank ? String(Number(bank.stock[stockGroup.value] || 0)) : '0';
+      const units = bank && bank.stock[stockGroup.value];
+      stockUnits.value = units == null ? '' : String(units);
     }
 
     async function saveStock() {
@@ -1429,16 +1457,24 @@
       const bank = state.hospitals.find((h) => h.id === stockHospital.value);
       if (!bank) return;
       const group = stockGroup.value;
-      const units = clamp(parseInt(stockUnits.value, 10) || 0, 0, 9999);
+      const value = stockUnits.value.trim();
+      const units = Number(value);
+      if (!value || !Number.isInteger(units) || units < 0 || units > 9999) {
+        toast('Enter a whole number from 0 to 9999.', 'error');
+        return;
+      }
+      let updatedAt = new Date().toISOString();
       if (CLOUD_ON) {
         try {
-          await CLOUD.updateStock(bank.id, group, units);
+          updatedAt = await CLOUD.updateStock(bank.id, group, units);
         } catch (e) {
           toast(e.message || 'Could not save the stock.', 'error');
           return;
         }
       }
       bank.stock[group] = units;
+      if (!bank.stockUpdatedAt) bank.stockUpdatedAt = {};
+      bank.stockUpdatedAt[group] = updatedAt;
       saveState(true);
       renderInventory();
       if (stockMsg) {
@@ -1460,7 +1496,7 @@
       const active = state.sos.filter((s) => sosStatus(s).value === 'ACTIVE').length;
       adminKpis.innerHTML =
         kpi('fa-users', 'Registered donors', total) +
-        kpi('fa-user-check', 'Ready now', ready) +
+        kpi('fa-user-check', 'Available profiles', ready) +
         kpi('fa-clock', 'In cooldown', cooldown) +
         kpi('fa-bell', 'Active SOS', active);
     }
@@ -1488,9 +1524,9 @@
         adminDonut.style.background = 'conic-gradient(var(--ok) 0 ' + p1 + '%, var(--warn) ' + p1 + '% ' + p2 + '%, var(--muted) ' + p2 + '% 100%)';
       }
       adminDonut.innerHTML = '<div class="donut-hole"><strong>' + total + '</strong><span>donors</span></div>';
-      adminDonut.setAttribute('aria-label', total + ' donors: ' + ready + ' ready, ' + cooldown + ' in cooldown, ' + paused + ' paused');
+      adminDonut.setAttribute('aria-label', total + ' donors: ' + ready + ' available with no recent donation date, ' + cooldown + ' in cooldown, ' + paused + ' paused');
       adminLegend.innerHTML =
-        '<li><span class="swatch" style="background:var(--ok)"></span>Ready <strong>' + ready + '</strong></li>' +
+        '<li><span class="swatch" style="background:var(--ok)"></span>Available <strong>' + ready + '</strong></li>' +
         '<li><span class="swatch" style="background:var(--warn)"></span>Cooldown <strong>' + cooldown + '</strong></li>' +
         '<li><span class="swatch" style="background:var(--muted)"></span>Paused <strong>' + paused + '</strong></li>';
     }
@@ -1499,7 +1535,7 @@
       if (!donor.available) return '<span class="badge badge-paused">Paused</span>';
       const el = eligibility(donor.lastDonation);
       return el.state === 'eligible'
-        ? '<span class="badge badge-eligible">Ready</span>'
+        ? '<span class="badge badge-eligible">' + esc(el.label) + '</span>'
         : '<span class="badge badge-cooldown">' + el.daysLeft + 'd left</span>';
     }
 
@@ -1556,11 +1592,11 @@
       if (CLOUD_ON) {
         const user = authUser();
         const demo = state.donors.filter((d) => d.demo).length;
-        storageInfo.textContent = 'Live network · ' + state.donors.length + ' donors' +
+        storageInfo.textContent = 'Network snapshot · ' + state.donors.length + ' donors' +
           (demo ? ' (' + demo + ' sample)' : '') + ' · ' + state.sos.length + ' requests · ' +
           state.hospitals.length + ' blood banks · ' +
           (user ? 'signed in as ' + user.email : 'public view (sign in to see numbers)') +
-          '. Last sync: ' + formatDateTime(state.updatedAt);
+          '. Last sync: ' + (lastSuccessfulSync ? formatDateTime(lastSuccessfulSync) : 'not available');
         return;
       }
       let bytes = 0;
@@ -2001,7 +2037,8 @@
       'manage-delete': (el) => manageDelete(el.dataset.id),
       'reveal-phone': (el) => revealPhone(el.dataset.id),
       'save-stock': () => saveStock(),
-      'clear-demo': () => clearDemo()
+      'clear-demo': () => clearDemo(),
+      'refresh-network': () => cloudRefresh(false)
     };
 
     function handleActionClick(event) {
@@ -2061,13 +2098,15 @@
       document.addEventListener('keydown', onGlobalKey);
       window.addEventListener('scroll', onScroll, { passive: true });
       window.addEventListener('resize', () => { if (window.innerWidth > 1020) closeNav(); });
+      window.addEventListener('offline', () => { if (CLOUD_ON) { syncStatus = 'unavailable'; renderNetworkStatus(); } });
+      window.addEventListener('online', () => { if (CLOUD_ON) cloudRefresh(true); });
       window.addEventListener('storage', (event) => {
         if (event.key === THEME_KEY) {
           const theme = storedTheme();
           if (theme) applyTheme(theme);
           return;
         }
-        if (event.key === DB_KEY && event.newValue) {
+        if (!CLOUD_ON && event.key === DB_KEY && event.newValue) {
           try {
             state = normalizeState(JSON.parse(event.newValue));
             buildHospitalSelect(true);
@@ -2094,9 +2133,11 @@
       buildHospitalSelect(false);
       setAdminTab('overview');
       renderAll();
+      renderNetworkStatus();
       wireEvents();
       setupScrollSpy();
       onScroll();
+      if (CLOUD_ON) setInterval(renderNetworkStatus, 60000);
       if (CLOUD_ON) cloudRefresh(true);
     }
 
@@ -2106,6 +2147,7 @@
     async function onAuthChange() {
       if (!authUser()) {
         Object.keys(revealedPhones).forEach((key) => { delete revealedPhones[key]; });
+        if (CLOUD_ON) state.donors.forEach((donor) => { donor.phone = ''; });
         adminRows = null;
       }
       await cloudRefresh(true);

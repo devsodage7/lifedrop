@@ -3,7 +3,7 @@
    falls back to the cache when the phone is offline.
    Bump CACHE when app files change. */
 
-const CACHE = 'lifedrop-v1';
+const CACHE = 'lifedrop-v2';
 const FILES = [
   './',
   './index.html',
@@ -26,7 +26,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('lifedrop-') && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });

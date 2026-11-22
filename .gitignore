@@ -1,5 +1,11 @@
-node_modules
-.wrangler
+node_modules/
+.wrangler/
 .DS_Store
 *.log
-.env
+.env*
+!.env.example
+.secrets/
+dist/
+build/
+coverage/
+/docs/SECURITY-NOTES.md
